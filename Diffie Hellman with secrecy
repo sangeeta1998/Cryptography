@@ -1,0 +1,63 @@
+//Diffie Hellman with secrecy
+
+%% A->B:G^Na
+%% B->A:G^Nb
+
+role role_A(A,B:agent,G:text, SND,RCV:channel(dy))
+
+played_by A
+def= 
+	local 
+		State: nat,
+		Na,Msg:text,
+		X,K:message 
+	init 
+		State:=0
+	
+	transition  
+		1. State=0 /\ RCV(start) =|>
+		   State':=1 /\ Na':=new() /\ SND(exp(G,Na'))
+	
+		2. State=1 /\ RCV(X') =|>
+		   State':=2 /\ K':=exp(X',Na) /\ Msg':=new() /\ SND({Msg'}_K')
+
+end role
+
+role role_B(B,A:agent, G:text,SND,RCV:channel(dy))  
+played_by B
+def=
+	local
+		State:nat,
+		Y,K:message,
+		Nb,Msg: text
+	init
+		State:=0
+	
+	transition
+		1. State=0 /\ RCV(Y') =|>
+		   State':=1 /\ Nb':=new() /\ K':=exp(Y',Nb') /\ SND(exp(G,Nb'))
+		2. State=1 /\ RCV({Msg'}_K) =|> State':=2
+
+end role
+
+
+role session (A,B:agent,G:text) 
+def=
+	local
+		SND_A,RCV_A,SND_B,RCV_B:channel (dy)
+	composition
+		role_A(A,B,G,SND_A,RCV_A)/\ role_B(B,A,G,SND_B,RCV_B)
+end role
+
+role environment()
+def=
+	const	Alice, Bob:agent,	
+		g,Gi:text
+	intruder_knowledge={Alice,Bob,G}  
+	composition
+		session(Alice,Bob,G)
+		/\ session(Alice,i,G)
+		/\ session(i,Bob,G)
+end role
+
+environment() 

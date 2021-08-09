@@ -1,0 +1,76 @@
+role role_1 (A,B,C : agent,Ka,Kb,Kc: public_key,Snd,Rcv : channel (dy))
+played_by A
+def=
+	local
+		State : nat,
+		Na : message,
+		Nb,Nc : text
+		init State := 0
+	transition
+		1. State = 0 /\ Rcv(start) =|>
+		   State':= 1 /\ Na' := new() /\ Snd({Na'}_Ka)  /\ secret(Na',na,{A,B}) 
+
+		2. State = 1 /\ Rcv({Nb'.xor(Na,B)}_Kb)  /\ Rcv({Nc'.xor(Nb',B)}_Kc) =|>
+		   State':= 2 /\ Snd({Na'}_Ka)
+end role
+
+role role_2 (B,A,C : agent,Kb,Ka,Kc : public_key,Snd,Rcv : channel (dy)) 
+played_by B 
+	def=
+		local
+			State : nat,
+			Na : message,
+			Nb,Nc : text
+			init State := 0
+	transition
+			1. State = 0 /\ Rcv({Na'}_Ka) =|>
+			   State':= 1 /\ Nb' := new() /\ Snd({Nb'.xor(Na',B)}_Kb)  /\ secret(Nb',nb,{A,B})
+
+			2. State = 1 /\ Rcv({Na}_Ka) /\  Rcv({Nc}_Kc)  =|> State':= 2  /\ Snd({Nb'}_Kb)
+end role
+
+
+role role_3 (C,B,A : agent,Kb,Ka,Kc : public_key,Snd,Rcv : channel (dy)) 
+played_by C 
+	def=
+		local
+			State : nat,
+			Na : message,
+			Nb,Nc : text
+			init State := 0
+	transition
+			1. State = 0 /\ Rcv({Na'}_Ka) =|>
+			   State':= 1 /\ Nc' := new() /\ Snd({Nc'.xor(Na',A)}_Kc)  /\ secret(Nc',nc,{A,B,C})
+
+			2. State = 1 /\ Rcv({Nb'.xor(Na',B)}_Kb) 
+				=|> State':= 2 /\ Snd({Nc'}_Kc)
+end role
+
+role session (A,B,C: agent,Ka, Kb, Kc : public_key) 
+	def=
+		local
+			Snd_A, Rcv_A, Snd_B, Rcv_B, Snd_C,Rcv_C: channel (dy)
+		composition
+			   alice(A,B,C,Ka,Kb,Kc,Snd_A,Rcv_A) 
+			/\ bob(C,B,A,Kb,Ka,Kc,Snd_B,Rcv_B) 
+			/\ charlie(B,C,A,Kc,Kb,Ka,Snd_C,Rcv_C)
+end role
+
+role environment()
+	def=
+		const
+			a, b, c, i : agent,
+			ka, kb, kc, ki : public_key,
+			na,nb,nc : protocol_id
+			intruder_knowledge 
+				= {a,b,c,i,ka,kb,kc,ki}
+			composition
+				session(b,a,i,kb,ka,ki)  /\ session(i,b,c, ki, kb,kc) /\ session(a,i,c,ka,ki,kc)
+end role
+
+goal
+secrecy_of na, nb ,nc
+end goal
+
+
+environment()

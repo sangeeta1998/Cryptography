@@ -1,0 +1,108 @@
+role role_1 (A,B,C     : agent, 
+            Ka,Kb,Kc   : public_key,  
+            Snd,Rcv : channel (dy)) 
+played_by A def=
+
+  local 
+     State  : nat, 
+     Na     : message, 
+     Nb,Nc     : text
+
+  init 
+     State:=0
+
+  transition 
+    1. State=0 /\ Rcv(start) =|> State':=1  /\ Na':=new()  /\ Snd({Na'.A}_Kb) /\ Snd({Na'.A}_Kc)		/\ witness(A,B,C,role_1_role_2_role_3_na,Na')
+       /\ secret(Na',na,{A,B,C})
+
+
+    2. State=1 /\ Rcv({Nb'.xor(Na,B)}_Ka) =|>
+          State':=2
+       /\ Snd({Nb'}_Kb) /\    Snd ({Nb'}_Kc)          /\ request (A,B,C,role_1_role_2_role_3_nb,Nb')
+
+end role
+ 
+role role_2 (C,B,A     : agent,  
+          Kb,Ka,Kc   : public_key,  
+          Snd,Rcv : channel (dy))
+ played_by B def=
+
+  local 
+     State : nat, 
+     Na    : message, 
+     Nb    : text
+
+  init 
+     State:=0
+ 
+  transition 
+    1. State=0 /\ Rcv({Na'.A}_Kb) =|>  State':=1   /\ Nb':=new()  /\ Snd({Nb'.xor(Na',B)}_Ka) /\ Snd({Nb'.xor(Na',B)}_Kc) /\ witness(B,A,C,role_2_role_1_role_3_nb,Nb')		
+       /\ secret(Nb',nb,{A,B,C})
+
+
+    2. State=1 /\ Rcv({Nb}_Kb)    =|>  State':=2  /\ request(B,A,C,role_2_role_1_role_3_na,Na)
+
+end role
+
+
+role role_3 (C,B,A     : agent,  
+          Kc,Kb,Ka   : public_key,  
+          Snd,Rcv : channel (dy))
+ played_by C def=
+
+  local 
+     State : nat, 
+     Na    : message, 
+     Nb,Nc    : text
+
+  init 
+     State:=0
+ 
+  transition 
+    1. State=0 /\ Rcv({Nb'}_Kc) =|>  State':=1   /\ Nc':=new()  /\ Snd({Nc'.xor(Nc',A)}_Ka)        /\ Snd({Nc'.xor(Nc',B)}_Kb)
+       /\ secret(Nc',nc,{A,B,C})  		/\ witness(C,B,A,role_3_role_2_role_1_nc,Nc')		
+
+
+    2. State=1 /\ Rcv({Nc'}_Kc) =|> State':=2 		/\ request(C,B,A,role_3_role_2_role_1_nc,Nc)
+
+
+end role
+
+role session (A,B, C: agent,
+              Ka, Kb ,Kc: public_key, 
+              SND, RCV: channel(dy) ) 
+def=
+
+  composition
+    role_1(A,B,C,Ka,Kb,Kc,SND,RCV) /\  role_2(B,A,C,Kb,Ka,Kc,SND,RCV) 	%/\ role_3(C,B,A,Kc,Kb,Ka,SND,RCV)
+
+end role
+
+role environment() 
+def=
+
+  local
+     Snd, Rcv: channel(dy)
+  const
+     a, b, c,i: agent,
+     ka, kb, kc,ki: public_key,
+     na, nb, nc , role_1_role_2_role_3_na, role_2_role_1_role_3_nb, role_3_role_2_role_1_nc : protocol_id
+     
+     
+
+  intruder_knowledge = {a,b,c,i,ka,kb,kc,ki,inv(ki)}
+
+  composition
+    session(a,b,i,ka,kb,ki,Snd,Rcv) /\ session(a,i,b,ka,ki,kb,Snd,Rcv)  /\ session (b,c,i,kb,kc,ki,Snd,Rcv)
+
+end role
+
+goal 
+	authentication_on role_1_role_2_role_3_na
+	authentication_on role_2_role_1_role_3_nb
+	authentication_on role_3_role_2_role_1_nc
+	
+     secrecy_of na, nb ,nc
+end goal
+
+environment()
